@@ -1,55 +1,83 @@
-graph TD
-    %% POWER SECTION
-    subgraph "1. Power Input & Protection"
-        USB[1. USB-C Breakout] -->|5V Wire| F[2. 3A Glass Fuse]
-        USB -->|GND Wire| GND[BLACK GND BUS]
-        F -->|5V Wire| VCC[RED 5V BUS]
-        
-        CAP[3. 1000uF Capacitor] ---|Long Leg| VCC
-        CAP ---|Short Leg / Stripe| GND
-    end
+=============================================================================
+                      THE "BRAIN BOX" WIRING SCHEMATIC
+=============================================================================
 
-    %% BRAINS & SENSORS
-    subgraph "2. Brains & Data (Custom Protoboard)"
-        N[5. NanoC6] -->|Red| VCC
-        N -->|Black| GND
-        N -->|Yellow| Y[YELLOW DATA BUS]
-        N -->|White| W[WHITE DATA BUS]
+-----------------------------------------------------------------------------
+1. MAIN POWER & BUS SYSTEM (Screw Terminal Blocks)
+-----------------------------------------------------------------------------
+USB-C Breakout Board (5V, 3A/4A Input)
+  ├─ GND ───────────────────────────────────────> [ GND BUS ] (Black Terminals)
+  └─ VBUS (5V) ───> [ 3A Glass Fuse ] ──────────> [ VCC BUS ] (Red Terminals)
 
-        S[7. Ultrasonic Sensor] -->|Red| VCC
-        S -->|Black| GND
-        S -->|Yellow| Y
-        S -->|White| W
-    end
+1000µF 16V Capacitor
+  ├─ Long Leg (+) ──────────────────────────────> [ VCC BUS ] (Red Terminals)
+  └─ Short Leg (-) ─────────────────────────────> [ GND BUS ] (Black Terminals)
 
-    %% PORT EXPANDER & M5 PUMPS
-    subgraph "3. Watering Units"
-        H[6. PbHub Main Input] -->|Red| VCC
-        H -->|Black| GND
-        H -->|Yellow| Y
-        H -->|White| W
+(Data Buses have no direct power input, they just link the components below)
+  ├─ [ SDA BUS ] (Yellow Terminals)
+  └─ [ SCL BUS ] (White Terminals)
 
-        P1[9. M5 Watering Unit 1] ===|Standard 4-Wire Cable| H
-        P2[9. M5 Watering Unit 2] ===|Standard 4-Wire Cable| H
-        P3[9. M5 Watering Unit 3] ===|Standard 4-Wire Cable| H
-        P4[9. M5 Watering Unit 4] ===|Standard 4-Wire Cable| H
-    end
 
-    %% OPTIONAL ZONE
-    subgraph "4. OPTIONAL UPGRADE ZONE (For 3rd Party Pumps)"
-        VCC -->|Red| T1[8. Screw Terminal 1]
-        GND -->|Black| T1
-        D1[10. Diode] ---|Stripe to 5V| T1
+-----------------------------------------------------------------------------
+2. THE BRAINS (M5Stack NanoC6, PbHub, Ultrasonic Sensor)
+-----------------------------------------------------------------------------
+M5Stack NanoC6 (Grove Cable cut in half)
+  ├─ Red Wire ──────────────────────────────────> [ VCC BUS ]
+  ├─ Black Wire ────────────────────────────────> [ GND BUS ]
+  ├─ Yellow Wire ───────────────────────────────> [ SDA BUS ]
+  └─ White Wire ────────────────────────────────> [ SCL BUS ]
 
-        VCC -->|Red| T2[8. Screw Terminal 2]
-        GND -->|Black| T2
-        D2[10. Diode] ---|Stripe to 5V| T2
-        
-        VCC -->|Red| T3[8. Screw Terminal 3]
-        GND -->|Black| T3
-        D3[10. Diode] ---|Stripe to 5V| T3
-        
-        VCC -->|Red| T4[8. Screw Terminal 4]
-        GND -->|Black| T4
-        D4[10. Diode] ---|Stripe to 5V| T4
-    end
+M5Stack PbHub v1.1 - Main Input Cable (Grove Cable cut in half)
+  ├─ Red Wire ──────────────────────────────────> [ VCC BUS ]
+  ├─ Black Wire ────────────────────────────────> [ GND BUS ]
+  ├─ Yellow Wire ───────────────────────────────> [ SDA BUS ]
+  └─ White Wire ────────────────────────────────> [ SCL BUS ]
+
+M5Stack Ultrasonic Sensor (Grove Cable cut in half)
+  ├─ Red Wire ──────────────────────────────────> [ VCC BUS ]
+  ├─ Black Wire ────────────────────────────────> [ GND BUS ]
+  ├─ Yellow Wire ───────────────────────────────> [ SDA BUS ]
+  └─ White Wire ────────────────────────────────> [ SCL BUS ]
+
+
+-----------------------------------------------------------------------------
+3. THE WATERING UNITS
+-----------------------------------------------------------------------------
+These plug directly into the PbHub using their standard, uncut Grove cables.
+
+M5Stack PbHub (v1.1) - Output Ports
+  ├─ Port 1 ════> M5Stack Watering Unit 1
+  ├─ Port 2 ════> M5Stack Watering Unit 2
+  ├─ Port 3 ════> M5Stack Watering Unit 3
+  └─ Port 4 ════> M5Stack Watering Unit 4
+
+
+-----------------------------------------------------------------------------
+4. OPTIONAL ZONE (For 3rd-Party Bare DC Pumps)
+-----------------------------------------------------------------------------
+Four 5mm Pitch PCB Screw Terminals. Keep this section physically separate.
+
+Terminal 1
+  ├─ Left Pin ───────────────> [ VCC BUS ]
+  ├─ Right Pin ──────────────> [ GND BUS ]
+  └─ 1N4001 Diode ───────────> Clamp Silver Stripe to Left Pin (VCC), 
+                               other end to Right Pin (GND)
+
+Terminal 2
+  ├─ Left Pin ───────────────> [ VCC BUS ]
+  ├─ Right Pin ──────────────> [ GND BUS ]
+  └─ 1N4001 Diode ───────────> Clamp Silver Stripe to Left Pin (VCC), 
+                               other end to Right Pin (GND)
+
+Terminal 3
+  ├─ Left Pin ───────────────> [ VCC BUS ]
+  ├─ Right Pin ──────────────> [ GND BUS ]
+  └─ 1N4001 Diode ───────────> Clamp Silver Stripe to Left Pin (VCC), 
+                               other end to Right Pin (GND)
+
+Terminal 4
+  ├─ Left Pin ───────────────> [ VCC BUS ]
+  ├─ Right Pin ──────────────> [ GND BUS ]
+  └─ 1N4001 Diode ───────────> Clamp Silver Stripe to Left Pin (VCC), 
+                               other end to Right Pin (GND)
+=============================================================================
