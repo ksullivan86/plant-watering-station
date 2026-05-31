@@ -7,18 +7,11 @@ substitutions:
   stop_pumps_if_empty: "true"
   tank_empty_cm: "20" 
   
-  # --- WEB SERVER CREDENTIALS ---
-  web_username: "admin"
-  web_password: "password123"
-
 esphome:
   name: brain-box
   friendly_name: "Brain Box"
   includes:
     - pbhub_control.h
-  platformio_options:
-    lib_deps:
-      - https://github.com/thomasfredericks/M5_PbHub.git
 
 esp32:
   board: esp32-c6-devkitc-1
@@ -41,8 +34,8 @@ ota:
 web_server:
   port: 80
   auth:
-    username: "${web_username}"
-    password: "${web_password}"
+    username: !secret web_server_username
+    password: !secret web_server_password
 
 logger:
 
