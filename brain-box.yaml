@@ -6,12 +6,17 @@ substitutions:
   use_ultrasonic_sensor: "true"
   stop_pumps_if_empty: "true"
   tank_empty_cm: "20" 
-  
+
 esphome:
   name: brain-box
   friendly_name: "Brain Box"
   includes:
     - pbhub_control.h
+  # Pass the native I2C bus into the C++ controller exactly at boot
+  on_boot:
+    priority: 600
+    then:
+      - lambda: 'pbhub.init(id(i2c_bus));'
 
 esp32:
   board: esp32-c6-devkitc-1
@@ -30,6 +35,7 @@ api:
 ota:
   password: !secret ota_password
   platform: esphome
+
 # Enables the local fallback Web UI
 web_server:
   port: 80
@@ -37,13 +43,19 @@ web_server:
     username: !secret web_server_username
     password: !secret web_server_password
 
+# Define the native ESPHome I2C bus for the NanoC6 Grove port
+i2c:
+  id: i2c_bus
+  sda: 2
+  scl: 1
+  frequency: 100kHz
+
 logger:
 
 # ==============================================================================
 # Dynamic Variables (Configurable in HA and Web UI)
 # ==============================================================================
 number:
-  # Target Moisture Sliders (Saved to flash memory)
   - platform: template
     name: "Plant 1 Target Moisture"
     id: target_moisture_1
@@ -84,7 +96,6 @@ number:
     optimistic: true
     restore_value: true
 
-  # Runtime Sliders (Saved to flash memory)
   - platform: template
     name: "Pump Soak Time (Seconds)"
     id: soak_time_sec
@@ -207,18 +218,16 @@ sensor:
     unit_of_measurement: "cm"
     update_interval: 5s
     lambda: 'return pbhub.read_ultrasonic();'
+
 # ==============================================================================
 # Watering Logic (Queued Power Management)
 # ==============================================================================
 script:
-  # --- THE MASTER PUMP QUEUE ---
-  # Only one pump can ever enter this block at a time. Others wait in line.
   - id: master_pump
     mode: queued
     parameters:
       target_pump: int
     then:
-      # Safety Check 1: Is the tank empty?
       - if:
           condition:
             and:
@@ -229,25 +238,20 @@ script:
             - logger.log: "Tank empty! Aborting queued pump."
             - script.stop: master_pump
             
-      # Safety Check 2: Turn on the requested pump
       - lambda: |-
           if (target_pump == 1) id(pump_1).turn_on();
           if (target_pump == 2) id(pump_2).turn_on();
           if (target_pump == 3) id(pump_3).turn_on();
           if (target_pump == 4) id(pump_4).turn_on();
           
-      # Run for the variable "Soak Time" (Converted from seconds to milliseconds)
       - delay: !lambda 'return (int)(id(soak_time_sec).state * 1000);'
       
-      # Turn off the requested pump
       - lambda: |-
           if (target_pump == 1) id(pump_1).turn_off();
           if (target_pump == 2) id(pump_2).turn_off();
           if (target_pump == 3) id(pump_3).turn_off();
           if (target_pump == 4) id(pump_4).turn_off();
 
-  # --- INDIVIDUAL PLANT COOLDOWNS ---
-  # These run independently, allowing multiple plants to wait out their 10m timers simultaneously
   - id: water_plant_1
     mode: single 
     then:
