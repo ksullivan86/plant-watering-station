@@ -18,7 +18,7 @@ esphome:
     - pbhub_control.h
   platformio_options:
     lib_deps:
-      - thomasfredericks/M5_PbHub@^0.1.5
+      - https://github.com/thomasfredericks/M5_PbHub.git
 
 esp32:
   board: esp32-c6-devkitc-1
