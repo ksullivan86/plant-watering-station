@@ -1,0 +1,274 @@
+# ==============================================================================
+# Brain Box - Main ESPHome Configuration
+# ==============================================================================
+substitutions:
+  # --- MASTER CONFIGURATION VARIABLES ---
+  use_ultrasonic_sensor: "true"
+  stop_pumps_if_empty: "true"
+  tank_empty_cm: "20" 
+  
+  # --- WEB SERVER CREDENTIALS ---
+  web_username: "admin"
+  web_password: "password123"
+
+esphome:
+  name: brain-box
+  friendly_name: "Brain Box"
+  includes:
+    - pbhub_control.h
+  platformio_options:
+    lib_deps:
+      - thomasfredericks/M5_PbHub@^0.1.5
+
+esp32:
+  board: esp32-c6-devkitc-1
+  variant: ESP32C6
+  framework:
+    type: arduino
+
+wifi:
+  ssid: "YOUR_WIFI_SSID"
+  password: "YOUR_WIFI_PASSWORD"
+
+api:
+  password: "YOUR_API_PASSWORD"
+
+ota:
+  password: "YOUR_OTA_PASSWORD"
+
+# Enables the local fallback Web UI
+web_server:
+  port: 80
+  auth:
+    username: "${web_username}"
+    password: "${web_password}"
+
+logger:
+
+# ==============================================================================
+# Dynamic Variables (Configurable in HA and Web UI)
+# ==============================================================================
+number:
+  # Target Moisture Sliders (Saved to flash memory)
+  - platform: template
+    name: "Plant 1 Target Moisture"
+    id: target_moisture_1
+    min_value: 0
+    max_value: 1023
+    step: 1
+    initial_value: 500
+    optimistic: true
+    restore_value: true
+
+  - platform: template
+    name: "Plant 2 Target Moisture"
+    id: target_moisture_2
+    min_value: 0
+    max_value: 1023
+    step: 1
+    initial_value: 500
+    optimistic: true
+    restore_value: true
+
+  - platform: template
+    name: "Plant 3 Target Moisture"
+    id: target_moisture_3
+    min_value: 0
+    max_value: 1023
+    step: 1
+    initial_value: 500
+    optimistic: true
+    restore_value: true
+
+  - platform: template
+    name: "Plant 4 Target Moisture"
+    id: target_moisture_4
+    min_value: 0
+    max_value: 1023
+    step: 1
+    initial_value: 500
+    optimistic: true
+    restore_value: true
+
+  # Runtime Sliders (Saved to flash memory)
+  - platform: template
+    name: "Pump Soak Time (Seconds)"
+    id: soak_time_sec
+    min_value: 1
+    max_value: 30
+    step: 1
+    initial_value: 5
+    optimistic: true
+    restore_value: true
+
+  - platform: template
+    name: "Moisture Wait Time (Minutes)"
+    id: wait_time_min
+    min_value: 1
+    max_value: 60
+    step: 1
+    initial_value: 10
+    optimistic: true
+    restore_value: true
+
+# ==============================================================================
+# Hardware: Water Pumps (Switches)
+# ==============================================================================
+switch:
+  - platform: custom
+    lambda: |-
+      auto pump_1 = new PbHubSwitch(0); 
+      auto pump_2 = new PbHubSwitch(1);
+      auto pump_3 = new PbHubSwitch(2);
+      auto pump_4 = new PbHubSwitch(3);
+      App.register_component(pump_1);
+      App.register_component(pump_2);
+      App.register_component(pump_3);
+      App.register_component(pump_4);
+      return {pump_1, pump_2, pump_3, pump_4};
+    switches:
+      - name: "Plant 1 Pump"
+        id: pump_1
+      - name: "Plant 2 Pump"
+        id: pump_2
+      - name: "Plant 3 Pump"
+        id: pump_3
+      - name: "Plant 4 Pump"
+        id: pump_4
+
+# ==============================================================================
+# Hardware: Sensors (Moisture & Ultrasonic)
+# ==============================================================================
+sensor:
+  - platform: custom
+    lambda: |-
+      auto moisture_1 = new PbHubSensor(0);
+      auto moisture_2 = new PbHubSensor(1);
+      auto moisture_3 = new PbHubSensor(2);
+      auto moisture_4 = new PbHubSensor(3);
+      auto water_level = new UltrasonicI2C();
+      
+      App.register_component(moisture_1);
+      App.register_component(moisture_2);
+      App.register_component(moisture_3);
+      App.register_component(moisture_4);
+      App.register_component(water_level);
+      
+      return {moisture_1, moisture_2, moisture_3, moisture_4, water_level};
+    sensors:
+      - name: "Plant 1 Moisture"
+        id: moisture_1
+        on_value:
+          then:
+            - if:
+                condition:
+                  lambda: 'return x < id(target_moisture_1).state;'
+                then:
+                  - script.execute: water_plant_1
+
+      - name: "Plant 2 Moisture"
+        id: moisture_2
+        on_value:
+          then:
+            - if:
+                condition:
+                  lambda: 'return x < id(target_moisture_2).state;'
+                then:
+                  - script.execute: water_plant_2
+
+      - name: "Plant 3 Moisture"
+        id: moisture_3
+        on_value:
+          then:
+            - if:
+                condition:
+                  lambda: 'return x < id(target_moisture_3).state;'
+                then:
+                  - script.execute: water_plant_3
+
+      - name: "Plant 4 Moisture"
+        id: moisture_4
+        on_value:
+          then:
+            - if:
+                condition:
+                  lambda: 'return x < id(target_moisture_4).state;'
+                then:
+                  - script.execute: water_plant_4
+
+      - name: "Main Tank Water Level (cm)"
+        id: tank_level
+        unit_of_measurement: "cm"
+
+# ==============================================================================
+# Watering Logic (Queued Power Management)
+# ==============================================================================
+script:
+  # --- THE MASTER PUMP QUEUE ---
+  # Only one pump can ever enter this block at a time. Others wait in line.
+  - id: master_pump
+    mode: queued
+    parameters:
+      target_pump: int
+    then:
+      # Safety Check 1: Is the tank empty?
+      - if:
+          condition:
+            and:
+              - lambda: 'return "${use_ultrasonic_sensor}" == "true";'
+              - lambda: 'return "${stop_pumps_if_empty}" == "true";'
+              - lambda: 'return id(tank_level).state > ${tank_empty_cm};' 
+          then:
+            - logger.log: "Tank empty! Aborting queued pump."
+            - script.stop: master_pump
+            
+      # Safety Check 2: Turn on the requested pump
+      - lambda: |-
+          if (target_pump == 1) id(pump_1).turn_on();
+          if (target_pump == 2) id(pump_2).turn_on();
+          if (target_pump == 3) id(pump_3).turn_on();
+          if (target_pump == 4) id(pump_4).turn_on();
+          
+      # Run for the variable "Soak Time" (Converted from seconds to milliseconds)
+      - delay: !lambda 'return (int)(id(soak_time_sec).state * 1000);'
+      
+      # Turn off the requested pump
+      - lambda: |-
+          if (target_pump == 1) id(pump_1).turn_off();
+          if (target_pump == 2) id(pump_2).turn_off();
+          if (target_pump == 3) id(pump_3).turn_off();
+          if (target_pump == 4) id(pump_4).turn_off();
+
+  # --- INDIVIDUAL PLANT COOLDOWNS ---
+  # These run independently, allowing multiple plants to wait out their 10m timers simultaneously
+  - id: water_plant_1
+    mode: single 
+    then:
+      - script.execute:
+          id: master_pump
+          target_pump: 1
+      - delay: !lambda 'return (int)(id(wait_time_min).state * 60000);'
+
+  - id: water_plant_2
+    mode: single
+    then:
+      - script.execute:
+          id: master_pump
+          target_pump: 2
+      - delay: !lambda 'return (int)(id(wait_time_min).state * 60000);'
+
+  - id: water_plant_3
+    mode: single
+    then:
+      - script.execute:
+          id: master_pump
+          target_pump: 3
+      - delay: !lambda 'return (int)(id(wait_time_min).state * 60000);'
+
+  - id: water_plant_4
+    mode: single
+    then:
+      - script.execute:
+          id: master_pump
+          target_pump: 4
+      - delay: !lambda 'return (int)(id(wait_time_min).state * 60000);'
