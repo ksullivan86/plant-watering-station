@@ -30,7 +30,10 @@ public:
     uint8_t data[2] = {0, 0};
     
     if (bus->write(HUB_ADDR, &reg_addr, 1) != esphome::i2c::ERROR_OK) return 0;
+    
+    // Wait 10ms for the hub to switch ports
     delay(10); 
+    
     if (bus->read(HUB_ADDR, data, 2) != esphome::i2c::ERROR_OK) return 0;
     
     return data[0] | (data[1] << 8);
@@ -40,25 +43,24 @@ public:
     if (!bus) return NAN;
     uint8_t cmd = 0x01; 
     
-    // 3-STRIKE RETRY LOOP: Prevents random "Disconnected" stutters
+    // 3-STRIKE RETRY LOOP to prevent "Disconnected" drops
     for (int attempts = 0; attempts < 3; attempts++) {
       if (bus->write(US_ADDR, &cmd, 1) == esphome::i2c::ERROR_OK) {
-        delay(120); // Wait for soundwave
+        delay(120); 
 
         uint8_t data[3] = {0, 0, 0};
         if (bus->read(US_ADDR, data, 3) == esphome::i2c::ERROR_OK) {
           uint32_t raw_data = (data[0] << 16) | (data[1] << 8) | data[2];
           float dist_mm = raw_data / 1000.0;
           
-          // Sanity check: Ensure it's a real physical number before returning
           if (dist_mm > 0.0 && dist_mm < 4500.0) {
             return dist_mm / 10.0; 
           }
         }
       }
-      delay(50); // Pause briefly before trying again
+      delay(50); 
     }
-    return NAN; // Only return NAN if it fails all 3 times
+    return NAN; 
   }
 };
 
