@@ -47,14 +47,19 @@ i2c:
 
 logger:
 
+globals:
+  - id: is_auto_running
+    type: bool
+    initial_value: 'false'
+
 # ==============================================================================
-# 1. UI SLIDERS (Saved to flash memory)
+# 1. UI SLIDERS (Moved to the HA "Configuration" Box)
 # ==============================================================================
 number:
-  # Moisture Targets (0% to 100%)
   - platform: template
-    name: "Plant 1 Target Moisture"
+    name: "P1: Target Moisture"
     id: target_moisture_1
+    entity_category: config
     min_value: 0
     max_value: 100
     step: 1
@@ -64,8 +69,9 @@ number:
     restore_value: true
 
   - platform: template
-    name: "Plant 2 Target Moisture"
+    name: "P2: Target Moisture"
     id: target_moisture_2
+    entity_category: config
     min_value: 0
     max_value: 100
     step: 1
@@ -75,8 +81,9 @@ number:
     restore_value: true
 
   - platform: template
-    name: "Plant 3 Target Moisture"
+    name: "P3: Target Moisture"
     id: target_moisture_3
+    entity_category: config
     min_value: 0
     max_value: 100
     step: 1
@@ -86,8 +93,9 @@ number:
     restore_value: true
 
   - platform: template
-    name: "Plant 4 Target Moisture"
+    name: "P4: Target Moisture"
     id: target_moisture_4
+    entity_category: config
     min_value: 0
     max_value: 100
     step: 1
@@ -96,10 +104,10 @@ number:
     optimistic: true
     restore_value: true
 
-  # Automation Timing
   - platform: template
-    name: "Auto-Soak Time (Seconds)"
+    name: "All: Auto-Soak Time (Seconds)"
     id: soak_time_sec
+    entity_category: config
     min_value: 1
     max_value: 30
     step: 1
@@ -108,8 +116,9 @@ number:
     restore_value: true
 
   - platform: template
-    name: "Auto-Wait Time (Minutes)"
+    name: "All: Auto-Wait Time (Minutes)"
     id: wait_time_min
+    entity_category: config
     min_value: 1
     max_value: 60
     step: 1
@@ -117,10 +126,10 @@ number:
     optimistic: true
     restore_value: true
 
-  # Manual Control Timing
   - platform: template
-    name: "Manual Pump Run Timer (0=Infinite)"
+    name: "All: Manual Pump Run Timer (0=Infinite)"
     id: manual_run_time
+    entity_category: config
     min_value: 0
     max_value: 120
     step: 1
@@ -128,10 +137,10 @@ number:
     optimistic: true
     restore_value: true
 
-  # Water Level Calibration
   - platform: template
-    name: "Tank EMPTY Distance (cm)"
+    name: "Tank: EMPTY Distance Calibration (cm)"
     id: tank_empty_cm
+    entity_category: config
     min_value: 1
     max_value: 100
     step: 1
@@ -140,8 +149,9 @@ number:
     restore_value: true
 
   - platform: template
-    name: "Tank FULL Distance (cm)"
+    name: "Tank: FULL Distance Calibration (cm)"
     id: tank_full_cm
+    entity_category: config
     min_value: 1
     max_value: 100
     step: 1
@@ -153,166 +163,222 @@ number:
 # 2. UI TOGGLES (Port Status & Automation)
 # ==============================================================================
 switch:
-  # --- PORT CONNECTION STATUS ---
-  # Keep these OFF in Home Assistant for empty ports to silence ghost data
   - platform: template
-    name: "Port 1 Connected"
+    name: "Enable Ultrasonic Sensor"
+    id: enable_ultrasonic
+    entity_category: config
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_ON
+
+  - platform: template
+    name: "Stop Pumps if Tank is Empty"
+    id: enable_tank_safety
+    entity_category: config
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_ON
+
+  - platform: template
+    name: "P1: Port Connected"
     id: port_1_connected
+    entity_category: config
     optimistic: true
     restore_mode: RESTORE_DEFAULT_OFF
 
   - platform: template
-    name: "Port 2 Connected"
+    name: "P2: Port Connected"
     id: port_2_connected
+    entity_category: config
     optimistic: true
     restore_mode: RESTORE_DEFAULT_OFF
 
   - platform: template
-    name: "Port 3 Connected"
+    name: "P3: Port Connected"
     id: port_3_connected
+    entity_category: config
     optimistic: true
     restore_mode: RESTORE_DEFAULT_OFF
 
   - platform: template
-    name: "Port 4 Connected"
+    name: "P4: Port Connected"
     id: port_4_connected
+    entity_category: config
     optimistic: true
     restore_mode: RESTORE_DEFAULT_OFF
 
-  # --- AUTOMATION TOGGLES ---
+  # --- AUTOMATION TOGGLES (Kept on main dashboard) ---
   - platform: template
-    name: "Enable Automation: Plant 1"
+    name: "P1: Enable Automation"
     id: auto_enable_1
     optimistic: true
     restore_mode: RESTORE_DEFAULT_OFF
+    turn_off_action:
+      - script.stop: water_plant_1
+      - switch.turn_off: pump_1
 
   - platform: template
-    name: "Enable Automation: Plant 2"
+    name: "P2: Enable Automation"
     id: auto_enable_2
     optimistic: true
     restore_mode: RESTORE_DEFAULT_OFF
+    turn_off_action:
+      - script.stop: water_plant_2
+      - switch.turn_off: pump_2
 
   - platform: template
-    name: "Enable Automation: Plant 3"
+    name: "P3: Enable Automation"
     id: auto_enable_3
     optimistic: true
     restore_mode: RESTORE_DEFAULT_OFF
+    turn_off_action:
+      - script.stop: water_plant_3
+      - switch.turn_off: pump_3
 
   - platform: template
-    name: "Enable Automation: Plant 4"
+    name: "P4: Enable Automation"
     id: auto_enable_4
     optimistic: true
     restore_mode: RESTORE_DEFAULT_OFF
+    turn_off_action:
+      - script.stop: water_plant_4
+      - switch.turn_off: pump_4
 
 # ==============================================================================
-# 3. MANUAL PUMP CONTROLS
+# 3. UNIFIED PUMP SWITCHES (True State & Manual Timers)
 # ==============================================================================
   - platform: template
-    name: "Manual Pump 1"
-    id: manual_pump_1
+    name: "P1: Pump"
+    id: pump_1
+    icon: "mdi:water-pump"
+    optimistic: true
     turn_on_action:
       - lambda: 'pbhub.set_pump(0, true);'
+    on_turn_on:
       - if:
           condition:
-            lambda: 'return id(manual_run_time).state > 0;'
+            and:
+              - lambda: 'return !id(is_auto_running);'
+              - lambda: 'return id(manual_run_time).state > 0;'
           then:
-            - delay: !lambda 'return (int)(id(manual_run_time).state * 1000);'
-            - lambda: 'pbhub.set_pump(0, false);'
-            - switch.template.publish:
-                id: manual_pump_1
-                state: OFF
+            - script.execute: manual_timer_1
     turn_off_action:
+      - script.stop: manual_timer_1
       - lambda: 'pbhub.set_pump(0, false);'
 
   - platform: template
-    name: "Manual Pump 2"
-    id: manual_pump_2
+    name: "P2: Pump"
+    id: pump_2
+    icon: "mdi:water-pump"
+    optimistic: true
     turn_on_action:
       - lambda: 'pbhub.set_pump(1, true);'
+    on_turn_on:
       - if:
           condition:
-            lambda: 'return id(manual_run_time).state > 0;'
+            and:
+              - lambda: 'return !id(is_auto_running);'
+              - lambda: 'return id(manual_run_time).state > 0;'
           then:
-            - delay: !lambda 'return (int)(id(manual_run_time).state * 1000);'
-            - lambda: 'pbhub.set_pump(1, false);'
-            - switch.template.publish:
-                id: manual_pump_2
-                state: OFF
+            - script.execute: manual_timer_2
     turn_off_action:
+      - script.stop: manual_timer_2
       - lambda: 'pbhub.set_pump(1, false);'
 
   - platform: template
-    name: "Manual Pump 3"
-    id: manual_pump_3
+    name: "P3: Pump"
+    id: pump_3
+    icon: "mdi:water-pump"
+    optimistic: true
     turn_on_action:
       - lambda: 'pbhub.set_pump(2, true);'
+    on_turn_on:
       - if:
           condition:
-            lambda: 'return id(manual_run_time).state > 0;'
+            and:
+              - lambda: 'return !id(is_auto_running);'
+              - lambda: 'return id(manual_run_time).state > 0;'
           then:
-            - delay: !lambda 'return (int)(id(manual_run_time).state * 1000);'
-            - lambda: 'pbhub.set_pump(2, false);'
-            - switch.template.publish:
-                id: manual_pump_3
-                state: OFF
+            - script.execute: manual_timer_3
     turn_off_action:
+      - script.stop: manual_timer_3
       - lambda: 'pbhub.set_pump(2, false);'
 
   - platform: template
-    name: "Manual Pump 4"
-    id: manual_pump_4
+    name: "P4: Pump"
+    id: pump_4
+    icon: "mdi:water-pump"
+    optimistic: true
     turn_on_action:
       - lambda: 'pbhub.set_pump(3, true);'
+    on_turn_on:
       - if:
           condition:
-            lambda: 'return id(manual_run_time).state > 0;'
+            and:
+              - lambda: 'return !id(is_auto_running);'
+              - lambda: 'return id(manual_run_time).state > 0;'
           then:
-            - delay: !lambda 'return (int)(id(manual_run_time).state * 1000);'
-            - lambda: 'pbhub.set_pump(3, false);'
-            - switch.template.publish:
-                id: manual_pump_4
-                state: OFF
+            - script.execute: manual_timer_4
     turn_off_action:
+      - script.stop: manual_timer_4
       - lambda: 'pbhub.set_pump(3, false);'
 
 # ==============================================================================
-# 4. IDENTIFY BUTTONS (1-Second Blip)
+# 4. IDENTIFY BUTTONS (Moved to config)
 # ==============================================================================
 button:
   - platform: template
-    name: "Identify Pump 1"
+    name: "P1: Identify Pump"
+    entity_category: config
     on_press:
-      - lambda: 'pbhub.set_pump(0, true);'
-      - delay: 1s
-      - lambda: 'pbhub.set_pump(0, false);'
+      - if:
+          condition:
+            lambda: 'return !id(pump_1).state;' 
+          then:
+            - lambda: 'pbhub.set_pump(0, true);'
+            - delay: 1s
+            - lambda: 'pbhub.set_pump(0, false);'
 
   - platform: template
-    name: "Identify Pump 2"
+    name: "P2: Identify Pump"
+    entity_category: config
     on_press:
-      - lambda: 'pbhub.set_pump(1, true);'
-      - delay: 1s
-      - lambda: 'pbhub.set_pump(1, false);'
+      - if:
+          condition:
+            lambda: 'return !id(pump_2).state;'
+          then:
+            - lambda: 'pbhub.set_pump(1, true);'
+            - delay: 1s
+            - lambda: 'pbhub.set_pump(1, false);'
 
   - platform: template
-    name: "Identify Pump 3"
+    name: "P3: Identify Pump"
+    entity_category: config
     on_press:
-      - lambda: 'pbhub.set_pump(2, true);'
-      - delay: 1s
-      - lambda: 'pbhub.set_pump(2, false);'
+      - if:
+          condition:
+            lambda: 'return !id(pump_3).state;'
+          then:
+            - lambda: 'pbhub.set_pump(2, true);'
+            - delay: 1s
+            - lambda: 'pbhub.set_pump(2, false);'
 
   - platform: template
-    name: "Identify Pump 4"
+    name: "P4: Identify Pump"
+    entity_category: config
     on_press:
-      - lambda: 'pbhub.set_pump(3, true);'
-      - delay: 1s
-      - lambda: 'pbhub.set_pump(3, false);'
+      - if:
+          condition:
+            lambda: 'return !id(pump_4).state;'
+          then:
+            - lambda: 'pbhub.set_pump(3, true);'
+            - delay: 1s
+            - lambda: 'pbhub.set_pump(3, false);'
 
 # ==============================================================================
 # 5. SENSORS (Moisture & Smart Water Level)
 # ==============================================================================
 sensor:
   - platform: template
-    name: "Plant 1 Moisture"
+    name: "P1: Moisture"
     id: moisture_1
     unit_of_measurement: "%"
     icon: "mdi:water-percent"
@@ -321,7 +387,6 @@ sensor:
       if (!id(port_1_connected).state) return NAN;
       float raw = pbhub.read_moisture(0);
       if (raw == 0) return NAN;
-      // Convert raw 2110 (Dry) and 1790 (Wet) into a clean 0-100% scale
       float percent = ((2110.0 - raw) / 320.0) * 100.0;
       if (percent < 0) return 0.0;
       if (percent > 100) return 100.0;
@@ -337,7 +402,7 @@ sensor:
               - script.execute: water_plant_1
 
   - platform: template
-    name: "Plant 2 Moisture"
+    name: "P2: Moisture"
     id: moisture_2
     unit_of_measurement: "%"
     icon: "mdi:water-percent"
@@ -361,7 +426,7 @@ sensor:
               - script.execute: water_plant_2
 
   - platform: template
-    name: "Plant 3 Moisture"
+    name: "P3: Moisture"
     id: moisture_3
     unit_of_measurement: "%"
     icon: "mdi:water-percent"
@@ -385,7 +450,7 @@ sensor:
               - script.execute: water_plant_3
 
   - platform: template
-    name: "Plant 4 Moisture"
+    name: "P4: Moisture"
     id: moisture_4
     unit_of_measurement: "%"
     icon: "mdi:water-percent"
@@ -409,18 +474,29 @@ sensor:
               - script.execute: water_plant_4
 
   - platform: template
-    name: "Main Tank Raw Distance"
+    name: "Tank: Raw Distance"
     id: tank_level
+    entity_category: diagnostic
     unit_of_measurement: "cm"
     update_interval: 5s
-    lambda: 'return pbhub.read_ultrasonic();'
+    # Added Median filter to ignore water ripples
+    filters:
+      - median:
+          window_size: 3
+          send_every: 1
+          send_first_at: 1
+    lambda: |-
+      if (!id(enable_ultrasonic).state) return NAN;
+      return pbhub.read_ultrasonic();
 
 text_sensor:
   - platform: template
-    name: "Main Tank Status"
+    name: "Tank: Status"
     id: tank_status
     update_interval: 5s
     lambda: |-
+      if (!id(enable_ultrasonic).state) return {"Disabled"};
+      
       float dist = id(tank_level).state;
       float empty = id(tank_empty_cm).state;
       float full = id(tank_full_cm).state;
@@ -439,9 +515,33 @@ text_sensor:
       return {"Full"};
 
 # ==============================================================================
-# 6. AUTOMATION LOGIC (Queued Power Management)
+# 6. AUTOMATION LOGIC & TIMERS
 # ==============================================================================
 script:
+  - id: manual_timer_1
+    mode: restart
+    then:
+      - delay: !lambda 'return (int)(id(manual_run_time).state * 1000);'
+      - switch.turn_off: pump_1
+
+  - id: manual_timer_2
+    mode: restart
+    then:
+      - delay: !lambda 'return (int)(id(manual_run_time).state * 1000);'
+      - switch.turn_off: pump_2
+
+  - id: manual_timer_3
+    mode: restart
+    then:
+      - delay: !lambda 'return (int)(id(manual_run_time).state * 1000);'
+      - switch.turn_off: pump_3
+
+  - id: manual_timer_4
+    mode: restart
+    then:
+      - delay: !lambda 'return (int)(id(manual_run_time).state * 1000);'
+      - switch.turn_off: pump_4
+
   - id: master_pump_auto
     mode: queued
     parameters:
@@ -450,25 +550,45 @@ script:
       - if:
           condition:
             and:
-              - lambda: 'return "${use_ultrasonic_sensor}" == "true";'
+              - lambda: 'return id(enable_ultrasonic).state;'
+              - lambda: 'return id(enable_tank_safety).state;'
               - lambda: 'return id(tank_level).state >= id(tank_empty_cm).state;' 
           then:
             - logger.log: "Tank empty! Aborting auto pump."
             - script.stop: master_pump_auto
-            
+
+      - if:
+          condition:
+            or:
+              - lambda: 'return target_pump == 1 && !id(auto_enable_1).state;'
+              - lambda: 'return target_pump == 2 && !id(auto_enable_2).state;'
+              - lambda: 'return target_pump == 3 && !id(auto_enable_3).state;'
+              - lambda: 'return target_pump == 4 && !id(auto_enable_4).state;'
+          then:
+            - logger.log: "Automation disabled for this pump. Aborting."
+            - script.stop: master_pump_auto
+
+      - globals.set:
+          id: is_auto_running
+          value: 'true'
+          
       - lambda: |-
-          if (target_pump == 1) pbhub.set_pump(0, true);
-          if (target_pump == 2) pbhub.set_pump(1, true);
-          if (target_pump == 3) pbhub.set_pump(2, true);
-          if (target_pump == 4) pbhub.set_pump(3, true);
+          if (target_pump == 1) id(pump_1).turn_on();
+          if (target_pump == 2) id(pump_2).turn_on();
+          if (target_pump == 3) id(pump_3).turn_on();
+          if (target_pump == 4) id(pump_4).turn_on();
           
       - delay: !lambda 'return (int)(id(soak_time_sec).state * 1000);'
       
       - lambda: |-
-          if (target_pump == 1) pbhub.set_pump(0, false);
-          if (target_pump == 2) pbhub.set_pump(1, false);
-          if (target_pump == 3) pbhub.set_pump(2, false);
-          if (target_pump == 4) pbhub.set_pump(3, false);
+          if (target_pump == 1) id(pump_1).turn_off();
+          if (target_pump == 2) id(pump_2).turn_off();
+          if (target_pump == 3) id(pump_3).turn_off();
+          if (target_pump == 4) id(pump_4).turn_off();
+
+      - globals.set:
+          id: is_auto_running
+          value: 'false'
 
   - id: water_plant_1
     mode: single 
